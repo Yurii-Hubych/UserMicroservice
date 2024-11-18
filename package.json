@@ -1,0 +1,51 @@
+{
+  "//": " --onSuccess \"npm run watch\" ",
+  "name": "Auth",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "rimraf dist && npm run build && tsc-watch --onSuccess \"npm run watch\" ",
+    "build": "tsc && cpx \"src/templates/**/*\" dist/templates",
+    "watch": "nodemon \"dist/app.mjs\" --watch \"dist\""
+  },
+  "dependencies": {
+    "amqplib": "^0.10.4",
+    "bcrypt": "^5.1.1",
+    "cron": "^3.1.7",
+    "dayjs": "^1.11.13",
+    "dotenv": "^16.4.5",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.2.1",
+    "express": "^4.21.1",
+    "joi": "^17.13.3",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.7.1",
+    "nodemailer": "^6.9.15",
+    "nodemon": "^3.1.7",
+    "prettier": "^3.3.3",
+    "rimraf": "^6.0.1",
+    "ts-node": "^10.9.2",
+    "tsc-watch": "^6.2.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.12.0",
+    "@types/amqplib": "^0.10.5",
+    "@types/bcrypt": "^5.0.2",
+    "@types/eslint__js": "^8.42.3",
+    "@types/express": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/nodemailer": "^6.4.16",
+    "@types/nodemailer-express-handlebars": "^4.0.5",
+    "@typescript-eslint/eslint-plugin": "^8.8.1",
+    "@typescript-eslint/parser": "^8.8.1",
+    "bcrypt": "^5.1.1",
+    "cpx": "^1.5.0",
+    "eslint": "^9.12.0",
+    "globals": "^15.11.0",
+    "nodemailer-express-handlebars": "6.1.2",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.8.1"
+  },
+  "private": true
+}
