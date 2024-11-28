@@ -15,9 +15,12 @@ class AuthController {
         }
     }
 
+    //TODO implement using cookies
     public async login(req: Request, res: Response, next: NextFunction) {
         try {
             const response = await authService.login(req.body, res.locals?.user)
+            res.cookie("accessToken", JSON.stringify(response.accessToken), {httpOnly: true, secure: true, sameSite: "lax"});
+            res.cookie("refreshToken", JSON.stringify(response.refreshToken), {httpOnly: true, secure: true, sameSite: "lax"});
             res.status(200).json(response);
         }
         catch (e) {
@@ -65,6 +68,15 @@ class AuthController {
             const { password } = req.body;
             await authService.setForgotPassword(tokenEntity, password);
             res.sendStatus(200);
+        }
+        catch (e) {
+            next(e);
+        }
+    }
+
+    public async validateAccessToken(req: Request, res: Response, next: NextFunction) {
+        try {
+            res.status(200).json(res.locals.tokenPayload);
         }
         catch (e) {
             next(e);

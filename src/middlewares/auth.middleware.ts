@@ -84,6 +84,7 @@ class AuthMiddleware {
         return (req: Request, res: Response, next: NextFunction) => {
             try {
                 const tokenPayload = res.locals.tokenPayload;
+
                 if (!tokenPayload._roles.includes(role)) {
                     throw new ApiError("Access denied", 403);
                 }

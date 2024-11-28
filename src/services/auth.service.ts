@@ -3,7 +3,6 @@ import {ApiError} from "../errors/api.error";
 import {passwordService} from "./password.service";
 import {tokenService} from "./token.service";
 import {ICredentials, ITokenPair, ITokenPayload} from "../custom-types/token.types";
-import {tokenModel} from "../models/token.model";
 import {oldPasswordModel} from "../models/old-password.model";
 import {emailService} from "./email.service";
 import {EmailTypeEnum} from "../enums/email-type";
@@ -11,11 +10,14 @@ import {IRole} from "../interfaces/roles.interface";
 import {IUser} from "../interfaces/user.interface";
 import {actionTokenTypeEnum} from "../enums/action-token-type.enum";
 import {IActionToken} from "../interfaces/action-token.interface";
-import { actionTokenModel } from "../models/action-token";
+import {actionTokenModel} from "../models/action-token";
 import {TokenTypeEnum} from "../enums/token-type.enum";
 import {rabbitMQ} from "../rabbitMQ";
 import {IEmployee} from "../interfaces/employee.interface";
 import {UserStatuses} from "../enums/userStatuses";
+import {authRepository} from "../repositories/auth.repository";
+import {Types} from "mongoose";
+import {userRepository} from "../repositories/user.repository";
 
 class AuthService {
     public async register(data: IUser): Promise<void> {
@@ -31,7 +33,7 @@ class AuthService {
         }
         rabbitMQ.sendMessage("registerUser", JSON.stringify(employee));
         await Promise.all([
-            oldPasswordModel.create({password: hashedPassword, _userId: createdUser._id}),
+            authRepository.saveOldPassword(hashedPassword, createdUser._id),
             // TODO email verification
             emailService.sendEmail(EmailTypeEnum.WELCOME, data.email, {actionToken: "test"})
         ])
@@ -56,7 +58,7 @@ class AuthService {
             isDeleted: user.status === UserStatuses.deleted
         });
         // TODO save hashed tokens
-        await tokenModel.create({...tokens, _userId: user?._id});
+        await authRepository.saveTokenPair(tokens, user?._id);
         return tokens;
     }
 
@@ -70,8 +72,8 @@ class AuthService {
             isDeleted: user.isDeleted
         });
         await Promise.all([
-            tokenModel.findOneAndDelete({refreshToken: tokenEntity.refreshToken}),
-            tokenModel.create({...tokens, _userId: user._id})
+            authRepository.deleteTokenPair(tokenEntity),
+            authRepository.saveTokenPair(tokens, user._id)
             ]);
         return tokens;
     }
@@ -97,8 +99,8 @@ class AuthService {
         const hashedNewPassword: string = await passwordService.hash(passwordPair.newPassword);
 
         await Promise.all([
-            oldPasswordModel.create({password: hashedNewPassword, _userId: userId}),
-            userModel.findByIdAndUpdate(userId, {password: hashedNewPassword})
+            authRepository.saveOldPassword(hashedNewPassword, new Types.ObjectId(userId)),
+            authRepository.updatePassword(new Types.ObjectId(userId), hashedNewPassword),
         ])
     }
 
@@ -106,19 +108,19 @@ class AuthService {
         const actionToken = tokenService.generateActionToken({_id: user._id, action: actionTokenTypeEnum.RESET_PASSWORD}, TokenTypeEnum.RESET);
         const actionTokenObject: IActionToken = {_userId: user._id, actionToken: actionToken, tokenType: actionTokenTypeEnum.RESET_PASSWORD}
         await Promise.all([
-            actionTokenModel.create(actionTokenObject),
+            authRepository.saveActionToken(actionTokenObject),
             emailService.sendEmail(EmailTypeEnum.FORGOT_PASSWORD, user.email, {actionToken: actionToken})
         ])
     }
 
     public async setForgotPassword(tokenEntity: IActionToken, password: string): Promise<void> {
-        const user = await userModel.findById(tokenEntity._userId).select("+password");
+        const user = await userRepository.findUserByIdWithPassword(tokenEntity._userId);
 
         if (!user) {
             throw new ApiError("User not found", 404);
         }
 
-        const oldPasswords = await oldPasswordModel.find({_userId: user._id});
+        const oldPasswords = await authRepository.getOldPasswords(user._id);
         const passwordMatches = await Promise.all(oldPasswords.map( async (oldPassword) => passwordService.compare(password, oldPassword.password)));
 
         if (passwordMatches.includes(true)) {
@@ -127,9 +129,10 @@ class AuthService {
 
         const newPasswordHash = await passwordService.hash(password);
         await Promise.all([
-            oldPasswordModel.create({password: newPasswordHash, _userId: user._id}),
-            userModel.findByIdAndUpdate(user._id, {password: newPasswordHash}),
-            actionTokenModel.deleteMany({_userId: user._id, tokenType: actionTokenTypeEnum.RESET_PASSWORD})
+            authRepository.saveOldPassword(newPasswordHash, user._id),
+            authRepository.updatePassword(user._id, newPasswordHash),
+            userRepository.updateUserPassword(user._id, newPasswordHash),
+            authRepository.deleteActionToken(actionTokenTypeEnum.RESET_PASSWORD, user._id),
         ])
     }
 }

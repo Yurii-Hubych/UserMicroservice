@@ -13,6 +13,7 @@ const router = Router();
 
 router.post("/register", commonMiddleware.isBodyValid(UserValidator.createUser), userMiddleWare.FindOrThrow<IUser>("email"), authController.register);
 router.post("/login", commonMiddleware.isBodyValid(UserValidator.login), userMiddleWare.isUserExists<ICredentials>("email"), authController.login);
+router.post("/validate-access-token", authMiddleware.CheckAccessToken, authController.validateAccessToken);
 router.post("/refresh", authMiddleware.CheckRefreshToken, authController.refresh);
 router.post("/password/change", commonMiddleware.isBodyValid(UserValidator.changePassword), authMiddleware.CheckAccessToken, authController.changePassword);
 router.post("/password/forgot", commonMiddleware.isBodyValid(UserValidator.forgotPassword), userMiddleWare.isUserExists<ICredentials>("email"), authController.forgotPassword);

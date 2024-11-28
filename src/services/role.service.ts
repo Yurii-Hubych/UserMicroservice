@@ -1,14 +1,15 @@
 import {roleModel} from "../models/role.model";
 import {IRole} from "../interfaces/roles.interface";
 import {rolePermissions, rolePriority} from "../constants/role.constants";
+import {roleRepository} from "../repositories/role.repository";
 
 class RoleService {
     public async getAllRoles(): Promise<IRole[]> {
-        return await roleModel.find();
+        return await roleRepository.getAllRoles();
     }
 
-    public async createRole(name: string): Promise<void> {
-        await roleModel.create(name);
+    public async createRole(roleName: string): Promise<void> {
+        await roleRepository.createRole(roleName);
     }
 
     public canModifyRoles(requesterRoles: string[], targetRole: string): boolean {
