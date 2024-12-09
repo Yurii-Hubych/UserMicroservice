@@ -6,8 +6,8 @@ class RabbitMQ {
 
     async connect() {
         try {
-            //this.connection = await amqp.connect('amqp://message-broker');
-            this.connection = await amqp.connect('amqp://localhost');
+            this.connection = await amqp.connect('amqp://message-broker');
+            //this.connection = await amqp.connect('amqp://localhost');
             this.channel = await this.connection.createChannel();
             console.log("Connected to RabbitMQ");
         } catch (error) {

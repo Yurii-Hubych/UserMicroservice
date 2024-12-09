@@ -4,7 +4,7 @@ import {ApiError} from "../errors/api.error";
 import {IRole} from "../interfaces/roles.interface";
 import {RolesArray} from "../custom-types/user.types";
 import {roleServices} from "../services/role.service";
-import {UserStatuses} from "../enums/userStatuses";
+import {UserStatuses} from "../enums/user-statuses";
 
 class UserMiddleware {
     public isUserExists<T> (field: keyof T) {

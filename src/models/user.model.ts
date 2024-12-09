@@ -1,6 +1,7 @@
 import {model, Schema, Types} from "mongoose";
-import {UserStatuses} from "../enums/userStatuses";
+import {UserStatuses} from "../enums/user-statuses";
 import {IUser} from "../interfaces/user.interface";
+import {AuthType} from "../enums/auth-type.enum";
 
 const userRole = new Types.ObjectId("671629a1599aabb8c8b9397e")
 
@@ -14,7 +15,7 @@ const UserScheme = new Schema<IUser>({
     },
     password: {
         type: String,
-        required: true,
+        required: false,
         trim: true,
         select: false
     },
@@ -34,7 +35,17 @@ const UserScheme = new Schema<IUser>({
         type: Schema.Types.Date,
         default: null
     },
-    isActivated: {
+    authType: {
+        type : String,
+        enum: AuthType,
+        required: true,
+        default: AuthType.LOCAL
+    },
+    ssoId: {
+        type: String,
+        default: null
+    },
+    isVerified: {
         type: Boolean,
         default: false
     }

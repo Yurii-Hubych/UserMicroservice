@@ -1,5 +1,5 @@
 import Joi from "joi";
-import {UserStatuses} from "../enums/userStatuses";
+import {UserStatuses} from "../enums/user-statuses";
 import { Types} from "mongoose";
 
 export class UserValidator {

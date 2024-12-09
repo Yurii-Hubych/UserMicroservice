@@ -3,7 +3,7 @@ import {IRole} from "../interfaces/roles.interface";
 
 class RoleRepository {
     public async getAllRoles():Promise<IRole[]>{
-        return roleModel.find();
+        return roleModel.find().lean();
     }
 
     public async createRole(roleName: string):Promise<void>{

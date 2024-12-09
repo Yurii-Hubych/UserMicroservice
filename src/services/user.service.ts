@@ -2,7 +2,7 @@ import {userModel} from "../models/user.model";
 import {rabbitMQ} from "../rabbitMQ";
 import {roleModel} from "../models/role.model";
 import {IRole} from "../interfaces/roles.interface";
-import {UserStatuses} from "../enums/userStatuses";
+import {UserStatuses} from "../enums/user-statuses";
 import {tokenModel} from "../models/token.model";
 
 class UserService {

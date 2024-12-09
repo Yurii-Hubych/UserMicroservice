@@ -10,21 +10,31 @@ import {IRole} from "../interfaces/roles.interface";
 import {IUser} from "../interfaces/user.interface";
 import {actionTokenTypeEnum} from "../enums/action-token-type.enum";
 import {IActionToken} from "../interfaces/action-token.interface";
-import {actionTokenModel} from "../models/action-token";
 import {TokenTypeEnum} from "../enums/token-type.enum";
 import {rabbitMQ} from "../rabbitMQ";
 import {IEmployee} from "../interfaces/employee.interface";
-import {UserStatuses} from "../enums/userStatuses";
+import {UserStatuses} from "../enums/user-statuses";
 import {authRepository} from "../repositories/auth.repository";
 import {Types} from "mongoose";
 import {userRepository} from "../repositories/user.repository";
+import axios from "axios";
+import {configs} from "../configs/configs";
 
 class AuthService {
+    /*constructor(
+        private emailService: EmailService,
+        private rabbitMQ: RabbitMQService,
+        private tokenService: TokenService,
+        private authRepository: AuthRepository,
+        private userRepository: UserRepository
+    ) {}*/
+
     public async register(data: IUser): Promise<void> {
         const hashedPassword: string = await passwordService.hash(data.password);
         const {name, surname, ...userData} = data;
         const createdUser = await userModel.create({...userData, password: hashedPassword});
 
+        console.log(createdUser);
         const employee:IEmployee = {
             _id: createdUser._id,
             name: name,
@@ -35,28 +45,23 @@ class AuthService {
         await Promise.all([
             authRepository.saveOldPassword(hashedPassword, createdUser._id),
             // TODO email verification
-            emailService.sendEmail(EmailTypeEnum.WELCOME, data.email, {actionToken: "test"})
+            //emailService.sendEmail(EmailTypeEnum.WELCOME, data.email, {actionToken: "test"})
         ])
     }
 
     public async login(credentials: ICredentials, user: IUser): Promise<ITokenPair> {
-        const userWithPassword = await userModel.findById(user._id).select("+password");
+        const userWithPassword = await userRepository.findUserByFieldWithPassword("email", credentials.email);
+        if (!userWithPassword?.password){
+            console.log(userWithPassword);
+            throw new ApiError("Invalid credentials", 401);
+        }
         const isMatched = await passwordService.compare(credentials.password, userWithPassword!.password)
 
         if (!isMatched) {
             throw new ApiError("Invalid credentials", 401);
         }
 
-        const userRoles = (user._roles as IRole[]).map((role: IRole) => role.name) || [];
-
-
-        const tokens = tokenService.generateTokenPair({
-            _id: user._id,
-            _roles: userRoles,
-            status: user.status,
-            isBlocked: user.status === UserStatuses.blocked,
-            isDeleted: user.status === UserStatuses.deleted
-        });
+        const tokens = tokenService.generateTokenPair(this.generateTokenPayload(user));
         // TODO save hashed tokens
         await authRepository.saveTokenPair(tokens, user?._id);
         return tokens;
@@ -79,16 +84,19 @@ class AuthService {
     }
 
     public async changePassword(passwordPair: { newPassword: string, oldPassword: string }, userId: string): Promise<void> {
+        const user = await userModel.findById(userId).select("+password") as IUser;
+        if (!user) {
+            throw new ApiError("User not found", 404);
+        }
+        if (!user.password){
+            throw new ApiError("Invalid credentials", 401);
+        }
+
         const oldPasswords = await oldPasswordModel.find({_userId: userId});
         const passwordMatches = await Promise.all(oldPasswords.map( async (oldPassword) => passwordService.compare(passwordPair.newPassword, oldPassword.password)));
 
         if (passwordMatches.includes(true)) {
             throw new ApiError("Password can't be as one of the previous passwords", 400);
-        }
-
-        const user = await userModel.findById(userId).select("+password");
-        if (!user) {
-            throw new ApiError("User not found", 404);
         }
 
         const isMatched = await passwordService.compare(passwordPair.oldPassword, user.password);
@@ -114,7 +122,7 @@ class AuthService {
     }
 
     public async setForgotPassword(tokenEntity: IActionToken, password: string): Promise<void> {
-        const user = await userRepository.findUserByIdWithPassword(tokenEntity._userId);
+        const user = await userRepository.findUserByFieldWithPassword("_id", tokenEntity._userId);
 
         if (!user) {
             throw new ApiError("User not found", 404);
@@ -134,6 +142,39 @@ class AuthService {
             userRepository.updateUserPassword(user._id, newPasswordHash),
             authRepository.deleteActionToken(actionTokenTypeEnum.RESET_PASSWORD, user._id),
         ])
+    }
+
+    public async googleLogin(code: string){
+        const {data} = await axios.post('https://oauth2.googleapis.com/token', {
+            client_id: configs.CLIENT_ID,
+            client_secret: configs.CLIENT_SECRET,
+            code,
+            redirect_uri: configs.GOOGLE_REDIRECT_URI,
+            grant_type: 'authorization_code',
+        });
+        const {access_token, id_token} = data;
+
+        const {data: profile} = await axios.get('https://www.googleapis.com/oauth2/v1/userinfo', {
+            headers: {Authorization: `Bearer ${access_token}`},
+        });
+
+        const user = await authRepository.findOrCreateGoogleUser(profile);
+
+        const tokens = tokenService.generateTokenPair(this.generateTokenPayload(user));
+        // TODO save hashed tokens
+        await authRepository.saveTokenPair(tokens, user?._id);
+        return tokens;
+    }
+
+    private generateTokenPayload(user: IUser): ITokenPayload {
+        const userRoles = (user._roles as IRole[]).map((role: IRole) => role.name) || [];
+        return {
+            _id: user._id,
+            _roles: userRoles,
+            status: user.status,
+            isBlocked: user.status === UserStatuses.blocked,
+            isDeleted: user.status === UserStatuses.deleted,
+        };
     }
 }
 export const authService = new AuthService();

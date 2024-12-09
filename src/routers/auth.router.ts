@@ -13,6 +13,8 @@ const router = Router();
 
 router.post("/register", commonMiddleware.isBodyValid(UserValidator.createUser), userMiddleWare.FindOrThrow<IUser>("email"), authController.register);
 router.post("/login", commonMiddleware.isBodyValid(UserValidator.login), userMiddleWare.isUserExists<ICredentials>("email"), authController.login);
+router.get("/google", authController.googleAuthGetCode);
+router.get("/google/callback", authController.googleLogin);
 router.post("/validate-access-token", authMiddleware.CheckAccessToken, authController.validateAccessToken);
 router.post("/refresh", authMiddleware.CheckRefreshToken, authController.refresh);
 router.post("/password/change", commonMiddleware.isBodyValid(UserValidator.changePassword), authMiddleware.CheckAccessToken, authController.changePassword);

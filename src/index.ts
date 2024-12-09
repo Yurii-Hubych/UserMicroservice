@@ -30,7 +30,7 @@ process.on("SIGINT", () => {
 })
 
 app.listen(port, async () => {
-    await mongoose.connect(configs.DB_URl_DEV);
+    await mongoose.connect(configs.DB_USER_URL);
     cronRunner();
     await rabbitMQ.connect();
     await initializeQueues();
